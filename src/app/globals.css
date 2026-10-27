@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/*
+ * Bazar design tokens. The palette mirrors the mobile app's theme/tokens.ts so
+ * the website and the app share one brand language (primary orange #F85606).
+ */
+@theme {
+  --color-brand-50: #fff4ee;
+  --color-brand-100: #ffe6d8;
+  --color-brand-200: #ffc9ad;
+  --color-brand-300: #ffa478;
+  --color-brand-400: #fb7436;
+  --color-brand-500: #f85606;
+  --color-brand-600: #d94805;
+  --color-brand-700: #b23a06;
+  --color-brand-800: #8a2f08;
+  --color-brand-900: #4e2a8a;
+
+  --color-canvas: #fafaf9;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f7f5f2;
+  --color-line: #e5e1dc;
+  --color-ink: #1c1917;
+  --color-ink-muted: #78716c;
+  --color-ink-faint: #a8a29e;
+  --color-accent: #f59e0b;
+  --color-success: #16a34a;
+  --color-success-soft: #dcfce7;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fee2e2;
+
+  --radius-card: 0.9rem;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    cursor: pointer;
+  }
+}
+
+@utility container-page {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 768px) {
+  .container-page {
+    padding-inline: 1.5rem;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
