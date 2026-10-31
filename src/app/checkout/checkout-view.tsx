@@ -46,6 +46,52 @@ function toInput(address: AddressDto): AddressInput {
   };
 }
 
+function UnavailablePaymentModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close"
+        tabIndex={-1}
+        className="absolute inset-0 bg-ink/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="unavailable-payment-title"
+        className="relative w-full max-w-sm rounded-2xl border border-line bg-surface p-6 shadow-xl"
+      >
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-ink-muted hover:bg-surface-muted"
+        >
+          ✕
+        </button>
+        <h2 id="unavailable-payment-title" className="text-lg font-bold text-ink">
+          Online Payment Unavailable
+        </h2>
+        <p className="mt-2 text-sm text-ink-muted">
+          This service is unavailable right now. We will implement that very soon.
+        </p>
+        <Button size="lg" fullWidth className="mt-6" onClick={onClose}>
+          Got It
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function CheckoutView() {
   const router = useRouter();
   const api = getBrowserApi();
@@ -65,6 +111,7 @@ export function CheckoutView() {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethodId>("standard");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
   const [voucherCode, setVoucherCode] = useState<string | undefined>(undefined);
+  const [showUnavailablePaymentModal, setShowUnavailablePaymentModal] = useState(false);
 
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -100,9 +147,7 @@ export function CheckoutView() {
       if (paymentResult.status === "fulfilled") {
         setPayments(paymentResult.value.methods);
         setPaymentNote(paymentResult.value.note);
-        const cod = paymentResult.value.methods.find((method) => method.id === "cod");
-        if (cod) setPaymentMethod("cod");
-        else if (paymentResult.value.methods[0]) setPaymentMethod(paymentResult.value.methods[0].id as PaymentMethod);
+        setPaymentMethod("cod");
       }
       if (voucherResult.status === "fulfilled") setVouchers(voucherResult.value.quotes);
       setReady(true);
@@ -326,12 +371,38 @@ export function CheckoutView() {
         <section className="rounded-[var(--radius-card)] border border-line bg-surface p-5">
           <h2 className="font-bold text-ink">Payment method</h2>
           <div className="mt-3 flex flex-col gap-2">
-            {payments.map((method) => (
-              <label key={method.id} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm", paymentMethod === method.id ? "border-brand-400 bg-brand-50/40" : "border-line")}>
-                <input type="radio" name="payment" checked={paymentMethod === method.id} onChange={() => setPaymentMethod(method.id as PaymentMethod)} />
-                <span className="font-medium text-ink">{method.label}</span>
-              </label>
-            ))}
+            {payments.map((method) => {
+              const isCod = method.id === "cod";
+              return (
+                <label
+                  key={method.id}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm",
+                    paymentMethod === method.id ? "border-brand-400 bg-brand-50/40" : "border-line",
+                  )}
+                  onClick={(e) => {
+                    if (!isCod) {
+                      e.preventDefault();
+                      setShowUnavailablePaymentModal(true);
+                    }
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    checked={paymentMethod === method.id}
+                    onChange={() => {
+                      if (isCod) {
+                        setPaymentMethod("cod");
+                      } else {
+                        setShowUnavailablePaymentModal(true);
+                      }
+                    }}
+                  />
+                  <span className="font-medium text-ink">{method.label}</span>
+                </label>
+              );
+            })}
             {payments.length === 0 && <p className="text-sm text-ink-muted">Cash on delivery</p>}
             {paymentNote && <p className="text-xs text-ink-faint">{paymentNote}</p>}
           </div>
@@ -398,6 +469,10 @@ export function CheckoutView() {
           </Link>
         </div>
       </aside>
+
+      {showUnavailablePaymentModal && (
+        <UnavailablePaymentModal onClose={() => setShowUnavailablePaymentModal(false)} />
+      )}
     </div>
   );
 }
