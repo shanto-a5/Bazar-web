@@ -46,6 +46,27 @@ function isCompleteAddress(address: { division: string; district: string; addres
 }
 
 /**
+ * True when a suggestion has enough to be saved to the address book.
+ * Valid GPS coordinates alone are enough — the text fields (division, district,
+ * addressLine) improve the record but must not prevent it from being saved when
+ * reverse-geocoding returns partial results.
+ */
+function isSaveableAddress(suggestion: {
+  division: string;
+  district: string;
+  addressLine: string;
+  latitude?: number;
+  longitude?: number;
+}): boolean {
+  const hasCoords =
+    suggestion.latitude !== undefined &&
+    suggestion.longitude !== undefined &&
+    Number.isFinite(suggestion.latitude) &&
+    Number.isFinite(suggestion.longitude);
+  return hasCoords || isCompleteAddress(suggestion);
+}
+
+/**
  * Phone-only onboarding form. `onSuccess` fires after the session is live (and
  * any captured address saved); when it is omitted the caller relies on the
  * session flipping to authenticated and re-rendering.
@@ -79,7 +100,7 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
     setPhase("Setting up your account…");
     try {
       const user = await quickAccount(trimmed);
-      if (suggestion && isCompleteAddress(suggestion)) {
+      if (suggestion && isSaveableAddress(suggestion)) {
         // Best-effort: a failed save must never block ordering. The route to
         // checkout still works and the customer can edit the address there.
         await getBrowserApi()

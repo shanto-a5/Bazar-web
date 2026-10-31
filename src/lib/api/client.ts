@@ -145,11 +145,20 @@ export class ApiClient {
     try {
       response = await fetch(`${this.root}${path}${buildQuery(options.query)}`, init);
       body = await response.text();
-    } catch {
+    } catch (err) {
       clearTimeout(timeout);
+      // AbortController fired → genuine timeout; any other throw is a network
+      // error (including a browser CORS block, which surfaces as a TypeError).
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      if (isAbort) {
+        throw new ApiError(
+          `The Bazar API did not respond in time. Please try again.`,
+          { code: "timeout" },
+        );
+      }
       throw new ApiError(
-        `Could not reach the Bazar API at ${this.root}. Check the connection.`,
-        { code: "timeout" },
+        `Could not reach the Bazar API. Check your connection or try again later.`,
+        { code: "network_error" },
       );
     } finally {
       clearTimeout(timeout);
