@@ -30,6 +30,8 @@ const emptyForm = (name: string, phone: string): AddressInput => ({
   addressLine: "",
   postalCode: "",
   instructions: "",
+  latitude: null,
+  longitude: null,
 });
 
 function toInput(address: AddressDto): AddressInput {
@@ -43,6 +45,8 @@ function toInput(address: AddressDto): AddressInput {
     addressLine: address.addressLine,
     postalCode: address.postalCode,
     instructions: address.instructions ?? "",
+    latitude: address.latitude ?? null,
+    longitude: address.longitude ?? null,
   };
 }
 
@@ -201,6 +205,8 @@ export function CheckoutView() {
         district: result.suggestion.district || prev.district,
         area: result.suggestion.area || prev.area,
         addressLine: result.suggestion.addressLine || prev.addressLine,
+        latitude: result.suggestion.latitude ?? prev.latitude,
+        longitude: result.suggestion.longitude ?? prev.longitude,
       }));
       setLocationNote("We filled what we could — please check and complete the address.");
     } else {
@@ -222,14 +228,16 @@ export function CheckoutView() {
       !effectiveAddress.recipientName ||
       !effectiveAddress.phone ||
       !effectiveAddress.division ||
-      !effectiveAddress.district ||
-      !effectiveAddress.addressLine
+      !effectiveAddress.district
     ) {
       setError("Please complete all required address fields.");
       return;
     }
     setBusy(true);
     try {
+      if (useForm) {
+        api.createAddress(effectiveAddress).catch(() => undefined);
+      }
       const receipt = await api.createOrder({
         address: effectiveAddress,
         paymentMethod,
@@ -327,14 +335,14 @@ export function CheckoutView() {
                 <Input id="district" value={form.district} onChange={(e) => update("district", e.target.value)} placeholder="e.g. Dhaka" />
               </Field>
               <Field label="Area" htmlFor="area">
-                <Input id="area" value={form.area ?? ""} onChange={(e) => update("area", e.target.value)} placeholder="e.g. Mirpur" />
+                <Input id="area" value={form.area ?? ""} onChange={(e) => update("area", e.target.value)} placeholder="Optional" />
               </Field>
               <Field label="Postal code" htmlFor="postalCode">
                 <Input id="postalCode" value={form.postalCode ?? ""} onChange={(e) => update("postalCode", e.target.value)} placeholder="Optional" inputMode="numeric" />
               </Field>
               <div className="sm:col-span-2">
                 <Field label="Street address" htmlFor="addressLine">
-                  <Input id="addressLine" value={form.addressLine} onChange={(e) => update("addressLine", e.target.value)} placeholder="House, road, landmark" />
+                  <Input id="addressLine" value={form.addressLine} onChange={(e) => update("addressLine", e.target.value)} placeholder="House, road, landmark (optional)" />
                 </Field>
               </div>
               <div className="sm:col-span-2">

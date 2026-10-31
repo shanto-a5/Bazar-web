@@ -180,6 +180,8 @@ export interface AddressDto {
   postalCode: string;
   instructions: string | null;
   isDefault: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -191,7 +193,7 @@ export interface AddressInput {
   division: string;
   district: string;
   area?: string;
-  addressLine: string;
+  addressLine?: string;
   postalCode?: string;
   instructions?: string;
   isDefault?: boolean;
