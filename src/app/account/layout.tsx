@@ -11,7 +11,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     <div className="container-page py-6">
       <AuthGate>
         <div className="grid gap-8 md:grid-cols-[16rem_1fr]">
-          <AccountNav />
+          <div className="account-nav-shell"><AccountNav /></div>
           <div className="min-w-0">{children}</div>
         </div>
       </AuthGate>

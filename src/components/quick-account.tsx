@@ -5,7 +5,7 @@ import { Alert, Button, Field, Input } from "@/components/ui";
 import { useSession } from "@/components/session-provider";
 import { getBrowserApi } from "@/lib/api/bazar-api";
 import { ApiError } from "@/lib/api/client";
-import { detectAddress, parseCoordinates } from "@/lib/geocode";
+import { detectAddress, parseCoordinates, resolveMapsCoordinates } from "@/lib/geocode";
 
 /**
  * Frictionless guest ordering (phone-only "quick account", M14).
@@ -82,7 +82,28 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
   const [locationFallback, setLocationFallback] = useState(false);
   const [coordinateText, setCoordinateText] = useState("");
   const [coordinateError, setCoordinateError] = useState<string | null>(null);
-  const manualCoordinates = parseCoordinates(coordinateText);
+  const [resolvingMapsLink, setResolvingMapsLink] = useState(false);
+  const [resolvedMapsCoordinates, setResolvedMapsCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const manualCoordinates = parseCoordinates(coordinateText) ?? resolvedMapsCoordinates;
+
+  useEffect(() => {
+    const value = coordinateText.trim();
+    if (parseCoordinates(value) || !value.startsWith("https://")) return;
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (active) setResolvingMapsLink(true);
+      return resolveMapsCoordinates(value);
+    }).then((coordinates) => {
+      if (!active) return;
+      if (coordinates) {
+        setResolvedMapsCoordinates(coordinates);
+        setCoordinateError(null);
+      } else {
+        setCoordinateError("We couldn’t read coordinates from that Maps link. Paste the latitude and longitude pair instead.");
+      }
+    }).finally(() => { if (active) setResolvingMapsLink(false); });
+    return () => { active = false; };
+  }, [coordinateText]);
 
   async function submit(withLocation: boolean, coordinates?: { latitude: number; longitude: number }) {
     const trimmed = phone.trim();
@@ -142,7 +163,7 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
   }
 
   function submitCoordinates() {
-    const coordinates = parseCoordinates(coordinateText);
+    const coordinates = manualCoordinates;
     if (!coordinates) {
       setCoordinateError("Enter two valid numbers as latitude, longitude. Latitude must be −90 to 90 and longitude −180 to 180.");
       return;
@@ -196,11 +217,12 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
           <a className="mt-2 inline-block text-sm font-semibold text-brand-600 underline" href="https://maps.google.com/" target="_blank" rel="noreferrer">
             Open Google Maps
           </a>
-          <Field label="Coordinates (latitude, longitude)" htmlFor="quick-account-coordinates" error={coordinateError ?? undefined} hint="Example: 23.8103, 90.4125">
-            <Input id="quick-account-coordinates" inputMode="decimal" autoComplete="off" placeholder="23.8103, 90.4125" value={coordinateText} onChange={(event) => { setCoordinateText(event.target.value); setCoordinateError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); submitCoordinates(); } }} disabled={busy} />
+          <Field label="Coordinates or Google Maps link" htmlFor="quick-account-coordinates" error={coordinateError ?? undefined} hint="Paste a coordinate pair or a Google Maps share link.">
+            <Input id="quick-account-coordinates" inputMode="decimal" autoComplete="off" placeholder="Paste coordinates or a Google Maps link" value={coordinateText} onChange={(event) => { setCoordinateText(event.target.value); setResolvedMapsCoordinates(null); setCoordinateError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); submitCoordinates(); } }} disabled={busy} />
           </Field>
+          {resolvingMapsLink && <p className="text-sm text-ink-muted" role="status">Reading the location from your Google Maps link…</p>}
           <div className="mt-3 flex flex-col gap-2">
-            {manualCoordinates ? (
+            {resolvingMapsLink ? null : manualCoordinates ? (
               <>
                 <Button size="lg" fullWidth disabled={busy} onClick={submitCoordinates}>
                   {busy ? (phase ?? "Setting up…") : "Continue"}

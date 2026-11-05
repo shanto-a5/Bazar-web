@@ -15,6 +15,12 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!placed) return;
+    document.body.classList.add("order-confirmation-mode");
+    return () => document.body.classList.remove("order-confirmation-mode");
+  }, [placed]);
+
+  useEffect(() => {
     let active = true;
     api
       .order(id)
@@ -36,6 +42,44 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
 
   const { order, sellerOrders, payment } = data;
   const shippingText = [order.shippingAddress?.addressLine, order.shippingAddress?.area, order.shippingAddress?.district, order.shippingAddress?.division, order.shippingAddress?.postalCode].filter(Boolean).join(", ");
+
+  if (placed) return (
+    <div className="order-confirmation-page mx-auto flex w-full max-w-2xl flex-col gap-5 py-2 sm:py-8">
+      <section className="rounded-3xl border border-success/30 bg-success-soft p-5 sm:p-8">
+        <div aria-hidden="true" className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-white text-3xl font-bold text-success">✓</div>
+        <p className="text-sm font-bold uppercase tracking-wider text-success">Order confirmed</p>
+        <h1 className="mt-2 text-3xl font-extrabold leading-tight text-ink sm:text-4xl">Thank you!</h1>
+        <p className="mt-2 text-lg leading-relaxed text-ink">Your order was placed successfully.</p>
+        <p className="mt-4 break-all rounded-xl bg-white/80 p-3 text-base font-semibold text-ink">Order #{order.orderCode}</p>
+        <p className="mt-2 text-base text-ink-muted">Placed {formatDate(order.placedAt)}</p>
+      </section>
+      <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+        <h2 className="text-lg font-bold text-ink">Order summary</h2>
+        <ul className="mt-3 divide-y divide-line">
+          {sellerOrders.flatMap((sellerOrder) => sellerOrder.items).map((item) => (
+            <li key={item.id} className="flex items-center justify-between gap-4 py-3 text-base">
+              <span className="min-w-0 break-words text-ink">{item.productName} <span className="text-ink-muted">× {item.quantity}</span></span>
+              <span className="shrink-0 font-semibold text-ink">{formatMoney(item.subtotal)}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex items-center justify-between border-t border-line pt-4 text-lg font-bold text-ink">
+          <span>Total</span><span>{formatMoney(order.total)}</span>
+        </div>
+        <p className="mt-2 text-base text-ink-muted">{paymentMethodLabel(order.paymentMethod)} · {paymentStatusLabel(order.paymentStatus)}</p>
+      </section>
+      <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+        <h2 className="text-lg font-bold text-ink">Delivery address</h2>
+        {order.shippingAddress ? <>
+          <p className="mt-2 text-base font-medium text-ink">{order.shippingAddress.recipientName}</p>
+          <p className="text-base text-ink-muted">{order.shippingAddress.phone}</p>
+          <p className="break-words text-base text-ink-muted">{shippingText || (typeof order.shippingAddress.latitude === "number" && typeof order.shippingAddress.longitude === "number" ? `Coordinates: ${order.shippingAddress.latitude}, ${order.shippingAddress.longitude}` : "Location details unavailable")}</p>
+        </> : <p className="mt-2 text-base text-ink-muted">Location details unavailable</p>}
+      </section>
+      <Link href={`/account/orders/${order.id}`} className="inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand-500 px-6 text-lg font-bold text-white hover:bg-brand-600">View order details</Link>
+      <Link href="/" className="py-2 text-center text-base font-semibold text-brand-600 underline">Continue shopping</Link>
+    </div>
+  );
 
   return (
     <div className="order-confirmation flex min-w-0 flex-col gap-5 sm:gap-6">

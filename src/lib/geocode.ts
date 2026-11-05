@@ -22,13 +22,33 @@ export type LocationResult =
 
 /** Parse the latitude, longitude pair copied from Google Maps. */
 export function parseCoordinates(value: string): { latitude: number; longitude: number } | null {
-  const match = value.trim().match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/);
+  const raw = value.trim();
+  const pair = raw.match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/);
+  const urlPair = raw.match(/(?:@|[?&](?:q|query|ll)=|!3d)(-?\d+(?:\.\d+)?)[,%!]+(-?\d+(?:\.\d+)?)/i);
+  const match = pair || urlPair;
   if (!match) return null;
   const latitude = Number(match[1]);
   const longitude = Number(match[2]);
   if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) return null;
   if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) return null;
   return { latitude, longitude };
+}
+
+export async function resolveMapsCoordinates(value: string): Promise<{ latitude: number; longitude: number } | null> {
+  const direct = parseCoordinates(value);
+  if (direct) return direct;
+  try {
+    const url = new URL(value.trim());
+    if (!/(^|\.)((maps\.app\.goo\.gl)|(goo\.gl)|(google\.com)|(google\.co\.[a-z.]+))$/i.test(url.hostname)) return null;
+    const response = await fetch("/api/resolve-maps-coordinates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url.toString() }),
+    });
+    if (!response.ok) return null;
+    const result = await response.json() as { latitude?: number; longitude?: number };
+    return parseCoordinates(`${result.latitude},${result.longitude}`);
+  } catch { return null; }
 }
 
 function getCurrentPosition(): Promise<GeolocationPosition> {

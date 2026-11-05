@@ -66,6 +66,17 @@ control at a readable size; viewport scaling is also disabled in layout.tsx. */
   }
 }
 
+@media (max-width: 767px) {
+  body.order-confirmation-mode header,
+  body.order-confirmation-mode footer,
+  body.order-confirmation-mode .account-nav-shell {
+    display: none !important;
+  }
+  body.order-confirmation-mode main {
+    padding: 1rem;
+  }
+}
+
 @utility container-page {
   width: 100%;
   max-width: 80rem;
