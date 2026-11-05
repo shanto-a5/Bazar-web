@@ -12,6 +12,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { getBrowserClient, onUnauthorized } from "@/lib/api/client";
 import { BazarApi } from "@/lib/api/bazar-api";
 import type { ApiUser, AuthResult } from "@/lib/types";
+import { BROWSER_PUSH_TOKEN_KEY, getGrantedBrowserPushToken } from "@/lib/firebase-messaging";
 
 const TOKEN_KEY = "bazar.auth.token";
 
@@ -64,6 +65,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     client.setToken(readStoredToken());
     return new BazarApi(client);
   });
+
+  useEffect(() => {
+    if (status !== "authenticated" || !user) return;
+    let active = true;
+    void getGrantedBrowserPushToken().then((token) => {
+      if (active && token) return api.registerPushDevice(token);
+      return undefined;
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [api, status, user]);
 
   const clearSession = useCallback(() => {
     getBrowserClient().setToken(null);
@@ -136,6 +147,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(
     async (everywhere = false) => {
+      try {
+      const token = window.localStorage.getItem(BROWSER_PUSH_TOKEN_KEY) || await getGrantedBrowserPushToken();
+      if (everywhere) await api.unregisterPushDevice();
+      else if (token) await api.unregisterPushToken(token);
+      window.localStorage.removeItem(BROWSER_PUSH_TOKEN_KEY);
+      } catch { /* push cleanup must not block sign out */ }
       try {
         if (everywhere) await api.logoutEverywhere();
         else await api.logout();

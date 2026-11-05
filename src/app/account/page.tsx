@@ -39,6 +39,15 @@ export default function AccountOverviewPage() {
     };
   }, [api]);
 
+  useEffect(() => {
+    const sync = (event: Event) => {
+      const detail = (event as CustomEvent<{ unreadCount: number }>).detail;
+      if (typeof detail?.unreadCount === "number") setCounts((current) => ({ ...current, unread: detail.unreadCount }));
+    };
+    window.addEventListener("bazar:notification-sync", sync);
+    return () => window.removeEventListener("bazar:notification-sync", sync);
+  }, []);
+
   const recentProducts = recent.map((item) => item.product).filter(Boolean);
 
   return (

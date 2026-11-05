@@ -37,20 +37,20 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
   const { order, sellerOrders, payment } = data;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
       {placed && <Alert tone="success">Thank you! Your order was placed successfully.</Alert>}
 
       <div>
         <Link href="/account/orders" className="text-sm text-ink-muted hover:text-brand-600">← Back to orders</Link>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold text-ink">Order #{order.orderCode}</h1>
+        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+          <h1 className="break-all text-xl font-bold text-ink sm:text-2xl">Order #{order.orderCode}</h1>
           <Badge tone={orderStatusTone(order.status)}>{orderStatusLabel(order.status)}</Badge>
         </div>
         <p className="text-sm text-ink-muted">Placed {formatDate(order.placedAt)}</p>
       </div>
 
       {sellerOrders.map((sellerOrder) => (
-        <section key={sellerOrder.id} className="rounded-[var(--radius-card)] border border-line bg-surface p-4">
+        <section key={sellerOrder.id} className="min-w-0 rounded-[var(--radius-card)] border border-line bg-surface p-3 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Link href={`/store/${sellerOrder.storeId}`} className="font-semibold text-ink hover:text-brand-600">
               {sellerOrder.storeName}
@@ -84,7 +84,7 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
                     {formatMoney(item.unitPrice)} × {item.quantity}
                   </p>
                 </div>
-                <span className="shrink-0 text-sm font-semibold text-ink">{formatMoney(item.subtotal)}</span>
+                <span className="max-w-[42%] shrink-0 break-words text-right text-sm font-semibold text-ink">{formatMoney(item.subtotal)}</span>
               </li>
             ))}
           </ul>
@@ -92,7 +92,7 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
           {sellerOrder.timeline.length > 0 && (
             <ol className="mt-3 flex flex-col gap-1 border-t border-line pt-3 text-sm">
               {sellerOrder.timeline.map((event, index) => (
-                <li key={index} className="flex items-center justify-between gap-3">
+                <li key={index} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <span className="text-ink-muted">{orderStatusLabel(event.status)}</span>
                   <span className="text-xs text-ink-faint">{formatDateTime(event.at)}</span>
                 </li>
@@ -109,8 +109,8 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
         </section>
       ))}
 
-      <section className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-[var(--radius-card)] border border-line bg-surface p-4">
+      <section className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4">
+        <div className="min-w-0 break-words rounded-[var(--radius-card)] border border-line bg-surface p-3 sm:p-4">
           <h2 className="font-semibold text-ink">Delivery address</h2>
           {order.shippingAddress ? (
             <address className="mt-2 text-sm not-italic text-ink-muted">
@@ -122,7 +122,7 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
             <p className="mt-2 text-sm text-ink-muted">No address on file.</p>
           )}
         </div>
-        <div className="rounded-[var(--radius-card)] border border-line bg-surface p-4">
+        <div className="min-w-0 break-words rounded-[var(--radius-card)] border border-line bg-surface p-3 sm:p-4">
           <h2 className="font-semibold text-ink">Payment</h2>
           <dl className="mt-2 space-y-1 text-sm">
             <Row label="Method" value={paymentMethodLabel(order.paymentMethod)} />

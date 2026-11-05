@@ -39,6 +39,15 @@ export function Header({ categories }: { categories: Category[] }) {
   }, [authenticated]);
 
   useEffect(() => {
+    const sync = (event: Event) => {
+      const detail = (event as CustomEvent<{ unreadCount: number }>).detail;
+      if (typeof detail?.unreadCount === "number") setUnread(detail.unreadCount);
+    };
+    window.addEventListener("bazar:notification-sync", sync);
+    return () => window.removeEventListener("bazar:notification-sync", sync);
+  }, []);
+
+  useEffect(() => {
     function onClick(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
     }

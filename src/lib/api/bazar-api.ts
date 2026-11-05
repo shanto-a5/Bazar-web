@@ -173,6 +173,18 @@ export class BazarApi {
   }
 
   // notifications
+  registerPushDevice(token: string, platform: "web" = "web") {
+    return this.client.post<{ registered: boolean }>("/api/v1/notifications/devices", { token, platform });
+  }
+
+  unregisterPushDevice() {
+    return this.client.post<{ removed: boolean }>("/api/v1/notifications/devices/unregister");
+  }
+
+  unregisterPushToken(token: string) {
+    return this.client.post<{ removed: boolean }>("/api/v1/notifications/devices/unregister", { token });
+  }
+
   notifications(options: { limit?: number; unread?: boolean } = {}) {
     const { limit, unread } = options;
     return this.client.get<{ notifications: import("@/lib/types").NotificationDto[]; unreadCount: number }>(

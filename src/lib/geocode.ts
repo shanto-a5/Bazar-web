@@ -20,6 +20,17 @@ export type LocationResult =
   | { ok: true; suggestion: AddressSuggestion }
   | { ok: false; reason: "unsupported" | "denied" | "unavailable" | "timeout" | "lookup_failed" };
 
+/** Parse the latitude, longitude pair copied from Google Maps. */
+export function parseCoordinates(value: string): { latitude: number; longitude: number } | null {
+  const match = value.trim().match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/);
+  if (!match) return null;
+  const latitude = Number(match[1]);
+  const longitude = Number(match[2]);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) return null;
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) return null;
+  return { latitude, longitude };
+}
+
 function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {

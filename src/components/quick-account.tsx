@@ -5,7 +5,7 @@ import { Alert, Button, Field, Input } from "@/components/ui";
 import { useSession } from "@/components/session-provider";
 import { getBrowserApi } from "@/lib/api/bazar-api";
 import { ApiError } from "@/lib/api/client";
-import { detectAddress } from "@/lib/geocode";
+import { detectAddress, parseCoordinates } from "@/lib/geocode";
 
 /**
  * Frictionless guest ordering (phone-only "quick account", M14).
@@ -79,8 +79,11 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [phase, setPhase] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [locationFallback, setLocationFallback] = useState(false);
+  const [coordinateText, setCoordinateText] = useState("");
+  const [coordinateError, setCoordinateError] = useState<string | null>(null);
 
-  async function submit(withLocation: boolean) {
+  async function submit(withLocation: boolean, coordinates?: { latitude: number; longitude: number }) {
     const trimmed = phone.trim();
     if (!PHONE_PATTERN.test(trimmed)) {
       setFieldError("Enter a valid phone number.");
@@ -90,11 +93,19 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
     setFormError(null);
     setBusy(true);
 
-    let suggestion: { division: string; district: string; area: string; addressLine: string; latitude?: number; longitude?: number } | null = null;
+    let suggestion: { division: string; district: string; area: string; addressLine: string; latitude?: number; longitude?: number } | null =
+      coordinates ? { division: "", district: "", area: "", addressLine: "", ...coordinates } : null;
     if (withLocation) {
       setPhase("Getting your location…");
       const result = await detectAddress();
-      if (result.ok) suggestion = result.suggestion;
+      if (result.ok) {
+        suggestion = result.suggestion;
+      } else {
+        setLocationFallback(true);
+        setBusy(false);
+        setPhase(null);
+        return;
+      }
     }
 
     setPhase("Setting up your account…");
@@ -127,6 +138,16 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
       setBusy(false);
       setPhase(null);
     }
+  }
+
+  function submitCoordinates() {
+    const coordinates = parseCoordinates(coordinateText);
+    if (!coordinates) {
+      setCoordinateError("Enter two valid numbers as latitude, longitude. Latitude must be −90 to 90 and longitude −180 to 180.");
+      return;
+    }
+    setCoordinateError(null);
+    void submit(false, coordinates);
   }
 
   return (
@@ -165,14 +186,37 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
 
       {formError && <Alert>{formError}</Alert>}
 
-      <div className="flex flex-col gap-2">
+      {locationFallback && (
+        <div className="rounded-xl border border-line bg-surface-muted p-4" aria-live="polite">
+          <h3 className="font-semibold text-ink">Use coordinates from Google Maps</h3>
+          <p className="mt-1 text-sm text-ink-muted">
+            Your device or browser couldn&apos;t share your location. Open Google Maps, tap the blue dot to find your current location, then copy its coordinates and paste them below. You can also continue without saving a location.
+          </p>
+          <a className="mt-2 inline-block text-sm font-semibold text-brand-600 underline" href="https://maps.google.com/" target="_blank" rel="noreferrer">
+            Open Google Maps
+          </a>
+          <Field label="Coordinates (latitude, longitude)" htmlFor="quick-account-coordinates" error={coordinateError ?? undefined} hint="Example: 23.8103, 90.4125">
+            <Input id="quick-account-coordinates" inputMode="decimal" autoComplete="off" placeholder="23.8103, 90.4125" value={coordinateText} onChange={(event) => { setCoordinateText(event.target.value); setCoordinateError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); submitCoordinates(); } }} disabled={busy} />
+          </Field>
+          <div className="mt-3 flex flex-col gap-2">
+            <Button size="lg" fullWidth disabled={busy} onClick={submitCoordinates}>
+              {busy ? (phase ?? "Setting up…") : "Continue with these coordinates"}
+            </Button>
+            <Button variant="outline" size="lg" fullWidth disabled={busy} onClick={() => void submit(false)}>
+              Continue without location
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!locationFallback && <div className="flex flex-col gap-2">
         <Button size="lg" fullWidth disabled={busy} onClick={() => void submit(true)}>
           {busy ? (phase ?? "Setting up…") : "Use my location & continue"}
         </Button>
         <Button variant="outline" size="lg" fullWidth disabled={busy} onClick={() => void submit(false)}>
           Continue without location
         </Button>
-      </div>
+      </div>}
     </div>
   );
 }

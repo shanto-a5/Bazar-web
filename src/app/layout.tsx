@@ -5,6 +5,7 @@ import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { QuickAccountProvider } from "@/components/quick-account";
 import { SessionProvider } from "@/components/session-provider";
+import { PushMessageBridge } from "@/components/push-message-bridge";
 import { BazarApi } from "@/lib/api/bazar-api";
 import { createServerClient } from "@/lib/api/client";
 import { siteDescription, siteName, siteUrl } from "@/lib/config";
@@ -61,6 +62,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
         <SessionProvider>
+        <PushMessageBridge />
           <QuickAccountProvider>
             <Header categories={categories} />
           <main id="main" className="flex-1">
