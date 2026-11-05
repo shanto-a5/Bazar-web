@@ -83,14 +83,14 @@ export default async function ProductPage({ params }: { params: Params }) {
   ]);
 
   return (
-    <div className="container-page py-6">
+    <div className="container-page py-4 sm:py-6">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd({ product, store, ratingAvg, ratingCount })) }}
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
 
-      <nav aria-label="Breadcrumb" className="mb-3 text-sm text-ink-muted">
+      <nav aria-label="Breadcrumb" className="mb-3 text-xs text-ink-muted sm:text-sm">
         <Link href="/" className="hover:text-brand-600">Home</Link>
         <span className="px-1.5">/</span>
         {category ? (
@@ -102,12 +102,12 @@ export default async function ProductPage({ params }: { params: Params }) {
         <span className="line-clamp-1 text-ink">{product.name}</span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-5 sm:gap-6 lg:grid-cols-2 lg:gap-8">
         <ProductGallery images={product.images} name={product.name} />
 
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-ink">{product.name}</h1>
+            <h1 className="break-words text-xl font-bold leading-snug text-ink sm:text-2xl">{product.name}</h1>
             {product.brand && <p className="mt-1 text-sm text-ink-muted">Brand: {product.brand}</p>}
             <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-ink-muted">
               <span className="flex items-center gap-1">
@@ -120,7 +120,7 @@ export default async function ProductPage({ params }: { params: Params }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-3xl font-extrabold text-brand-600">{formatMoney(price)}</span>
+            <span className="text-2xl font-extrabold text-brand-600 sm:text-3xl">{formatMoney(price)}</span>
             {discount > 0 && (
               <>
                 <span className="text-lg text-ink-faint line-through">{formatMoney(product.regularPrice)}</span>
@@ -166,11 +166,11 @@ export default async function ProductPage({ params }: { params: Params }) {
         </div>
       </div>
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-[2fr_1fr]">
+      <div className="mt-7 grid min-w-0 gap-6 sm:mt-10 sm:gap-8 lg:grid-cols-[2fr_1fr]">
         <section>
           <h2 className="text-lg font-bold text-ink">Product details</h2>
           {product.description && (
-            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-muted">{product.description}</p>
+            <p className="mt-2 break-words whitespace-pre-line text-sm leading-relaxed text-ink-muted">{product.description}</p>
           )}
           {product.highlights.length > 0 && (
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink-muted">
