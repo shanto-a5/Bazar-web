@@ -224,13 +224,23 @@ export function CheckoutView() {
       setError("Please choose or add a delivery address.");
       return;
     }
+    const hasValidCoordinates =
+      typeof effectiveAddress.latitude === "number" &&
+      typeof effectiveAddress.longitude === "number" &&
+      Number.isFinite(effectiveAddress.latitude) &&
+      effectiveAddress.latitude >= -90 &&
+      effectiveAddress.latitude <= 90 &&
+      Number.isFinite(effectiveAddress.longitude) &&
+      effectiveAddress.longitude >= -180 &&
+      effectiveAddress.longitude <= 180;
     if (
-      !effectiveAddress.recipientName ||
-      !effectiveAddress.phone ||
-      !effectiveAddress.division ||
-      !effectiveAddress.district
+      !effectiveAddress.recipientName.trim() ||
+      !effectiveAddress.phone.trim() ||
+      (!hasValidCoordinates && (!effectiveAddress.division.trim() || !effectiveAddress.district.trim()))
     ) {
-      setError("Please complete all required address fields.");
+      setError(hasValidCoordinates
+        ? "Please enter the recipient name and phone number."
+        : "Please enter the recipient, phone, division, and district, or provide valid coordinates.");
       return;
     }
     setBusy(true);
@@ -308,8 +318,11 @@ export function CheckoutView() {
                     <span className="font-semibold text-ink">{address.recipientName}</span>
                     {address.isDefault && <Badge tone="brand" className="ml-2">Default</Badge>}
                     <span className="block text-ink-muted">{address.phone}</span>
-                    <span className="block text-ink-muted">
-                      {[address.addressLine, address.area, address.district, address.division, address.postalCode].filter(Boolean).join(", ")}
+                    <span className="block break-words text-ink-muted">
+                      {[address.addressLine, address.area, address.district, address.division, address.postalCode].filter(Boolean).join(", ") ||
+                        (typeof address.latitude === "number" && typeof address.longitude === "number"
+                          ? `Coordinates: ${address.latitude}, ${address.longitude}`
+                          : "Location saved")}
                     </span>
                   </span>
                 </label>

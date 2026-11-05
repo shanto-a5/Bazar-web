@@ -82,6 +82,7 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
   const [locationFallback, setLocationFallback] = useState(false);
   const [coordinateText, setCoordinateText] = useState("");
   const [coordinateError, setCoordinateError] = useState<string | null>(null);
+  const manualCoordinates = parseCoordinates(coordinateText);
 
   async function submit(withLocation: boolean, coordinates?: { latitude: number; longitude: number }) {
     const trimmed = phone.trim();
@@ -199,12 +200,28 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
             <Input id="quick-account-coordinates" inputMode="decimal" autoComplete="off" placeholder="23.8103, 90.4125" value={coordinateText} onChange={(event) => { setCoordinateText(event.target.value); setCoordinateError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); submitCoordinates(); } }} disabled={busy} />
           </Field>
           <div className="mt-3 flex flex-col gap-2">
-            <Button size="lg" fullWidth disabled={busy} onClick={submitCoordinates}>
-              {busy ? (phase ?? "Setting up…") : "Continue with these coordinates"}
-            </Button>
-            <Button variant="outline" size="lg" fullWidth disabled={busy} onClick={() => void submit(false)}>
-              Continue without location
-            </Button>
+            {manualCoordinates ? (
+              <>
+                <Button size="lg" fullWidth disabled={busy} onClick={submitCoordinates}>
+                  {busy ? (phase ?? "Setting up…") : "Continue"}
+                </Button>
+                <Button variant="outline" size="lg" fullWidth disabled={busy} onClick={() => void submit(false)}>
+                  Continue without location
+                </Button>
+                <button type="button" className="self-center px-2 py-1 text-sm font-medium text-brand-600 underline disabled:opacity-50" disabled={busy} onClick={() => void submit(true)}>
+                  Get my current location (optional)
+                </button>
+              </>
+            ) : (
+              <>
+                <Button size="lg" fullWidth disabled={busy} onClick={() => void submit(true)}>
+                  {busy ? (phase ?? "Getting your location…") : "Try my current location"}
+                </Button>
+                <Button variant="outline" size="lg" fullWidth disabled={busy} onClick={() => void submit(false)}>
+                  Continue without location
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -249,7 +266,7 @@ function QuickAccountDialog({
         role="dialog"
         aria-modal="true"
         aria-label="Order with your phone number"
-        className="relative w-full max-w-md rounded-t-2xl border border-line bg-surface p-5 shadow-xl sm:rounded-2xl"
+        className="relative max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl sm:pb-5"
       >
         <button
           type="button"

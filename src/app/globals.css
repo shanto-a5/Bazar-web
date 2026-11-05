@@ -56,6 +56,16 @@
   }
 }
 
+/* iOS Safari auto-zooms focused controls below 16px. Keep every mobile form
+control at a readable size; viewport scaling is also disabled in layout.tsx. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 @utility container-page {
   width: 100%;
   max-width: 80rem;

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
-import { Alert, Badge, EmptyState, Spinner } from "@/components/ui";
+import { Badge, EmptyState, Spinner } from "@/components/ui";
 import { getBrowserApi } from "@/lib/api/bazar-api";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { orderStatusLabel, orderStatusTone, paymentMethodLabel, paymentStatusLabel } from "@/lib/labels";
@@ -35,10 +35,26 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
   }
 
   const { order, sellerOrders, payment } = data;
+  const shippingText = [order.shippingAddress?.addressLine, order.shippingAddress?.area, order.shippingAddress?.district, order.shippingAddress?.division, order.shippingAddress?.postalCode].filter(Boolean).join(", ");
 
   return (
-    <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
-      {placed && <Alert tone="success">Thank you! Your order was placed successfully.</Alert>}
+    <div className="order-confirmation flex min-w-0 flex-col gap-5 sm:gap-6">
+      {placed && (
+        <section className="flex min-w-0 flex-col gap-4 rounded-2xl border border-success/30 bg-success-soft p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+            <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-2xl font-bold text-success">✓</span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold uppercase tracking-wide text-success">Order confirmed</p>
+              <h1 className="mt-1 text-xl font-bold leading-tight text-ink sm:text-2xl">Thank you. Your order was placed successfully.</h1>
+              <p className="mt-1 text-sm text-ink-muted">We&apos;ll keep you updated as your order moves forward.</p>
+              <p className="mt-2 break-all text-base font-semibold text-ink">Order #{order.orderCode}</p>
+            </div>
+          </div>
+          <Link href="/account/orders" className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-full bg-success px-5 text-sm font-semibold text-white hover:brightness-95 sm:w-auto">
+            View my orders
+          </Link>
+        </section>
+      )}
 
       <div>
         <Link href="/account/orders" className="text-sm text-ink-muted hover:text-brand-600">← Back to orders</Link>
@@ -46,11 +62,11 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
           <h1 className="break-all text-xl font-bold text-ink sm:text-2xl">Order #{order.orderCode}</h1>
           <Badge tone={orderStatusTone(order.status)}>{orderStatusLabel(order.status)}</Badge>
         </div>
-        <p className="text-sm text-ink-muted">Placed {formatDate(order.placedAt)}</p>
+        <p className="text-base text-ink-muted sm:text-sm">Placed {formatDate(order.placedAt)}</p>
       </div>
 
       {sellerOrders.map((sellerOrder) => (
-        <section key={sellerOrder.id} className="min-w-0 rounded-[var(--radius-card)] border border-line bg-surface p-3 sm:p-4">
+        <section key={sellerOrder.id} className="min-w-0 rounded-[var(--radius-card)] border border-line bg-surface p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Link href={`/store/${sellerOrder.storeId}`} className="font-semibold text-ink hover:text-brand-600">
               {sellerOrder.storeName}
@@ -67,12 +83,12 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
 
           <ul className="mt-3 divide-y divide-line">
             {sellerOrder.items.map((item) => (
-              <li key={item.id} className="flex gap-3 py-3">
-                <Link href={`/product/${item.productId}`} className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line bg-surface-muted">
+              <li key={item.id} className="flex min-w-0 gap-3 py-3">
+                <Link href={`/product/${item.productId}`} className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-line bg-surface-muted sm:h-16 sm:w-16">
                   <SafeImage src={item.image} alt={item.productName} className="h-full w-full" />
                 </Link>
                 <div className="min-w-0 flex-1">
-                  <Link href={`/product/${item.productId}`} className="line-clamp-1 text-sm font-medium text-ink hover:text-brand-600">
+                  <Link href={`/product/${item.productId}`} className="line-clamp-2 text-base font-medium text-ink hover:text-brand-600 sm:line-clamp-1 sm:text-sm">
                     {item.productName}
                   </Link>
                   {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 && (
@@ -80,11 +96,11 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
                       {Object.entries(item.variantAttributes).map(([key, value]) => `${key}: ${value}`).join(", ")}
                     </p>
                   )}
-                  <p className="text-sm text-ink-muted">
+                  <p className="text-base text-ink-muted sm:text-sm">
                     {formatMoney(item.unitPrice)} × {item.quantity}
                   </p>
                 </div>
-                <span className="max-w-[42%] shrink-0 break-words text-right text-sm font-semibold text-ink">{formatMoney(item.subtotal)}</span>
+                <span className="max-w-[42%] shrink-0 break-words text-right text-base font-semibold text-ink sm:text-sm">{formatMoney(item.subtotal)}</span>
               </li>
             ))}
           </ul>
@@ -109,22 +125,22 @@ export function OrderDetail({ id, placed }: { id: string; placed: boolean }) {
         </section>
       ))}
 
-      <section className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4">
+      <section className="grid min-w-0 gap-4 sm:grid-cols-2 sm:gap-4">
         <div className="min-w-0 break-words rounded-[var(--radius-card)] border border-line bg-surface p-3 sm:p-4">
-          <h2 className="font-semibold text-ink">Delivery address</h2>
+          <h2 className="text-base font-semibold text-ink sm:text-sm">Delivery address</h2>
           {order.shippingAddress ? (
-            <address className="mt-2 text-sm not-italic text-ink-muted">
+            <address className="mt-2 text-base not-italic leading-relaxed text-ink-muted sm:text-sm">
               <p className="font-medium text-ink">{order.shippingAddress.recipientName}</p>
               <p>{order.shippingAddress.phone}</p>
-              <p>{[order.shippingAddress.addressLine, order.shippingAddress.area, order.shippingAddress.district, order.shippingAddress.division, order.shippingAddress.postalCode].filter(Boolean).join(", ")}</p>
+              <p>{shippingText || (typeof order.shippingAddress.latitude === "number" && typeof order.shippingAddress.longitude === "number" ? `Coordinates: ${order.shippingAddress.latitude}, ${order.shippingAddress.longitude}` : "Location details unavailable")}</p>
             </address>
           ) : (
             <p className="mt-2 text-sm text-ink-muted">No address on file.</p>
           )}
         </div>
         <div className="min-w-0 break-words rounded-[var(--radius-card)] border border-line bg-surface p-3 sm:p-4">
-          <h2 className="font-semibold text-ink">Payment</h2>
-          <dl className="mt-2 space-y-1 text-sm">
+          <h2 className="text-base font-semibold text-ink sm:text-sm">Payment</h2>
+          <dl className="mt-2 space-y-1 text-base sm:text-sm">
             <Row label="Method" value={paymentMethodLabel(order.paymentMethod)} />
             <Row label="Status" value={paymentStatusLabel(order.paymentStatus)} />
             <Row label="Total" value={formatMoney(order.total)} strong />
