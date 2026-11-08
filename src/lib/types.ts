@@ -116,6 +116,8 @@ export interface Store extends BaseEntity {
   deliveryEstimateDays: { min: number; max: number };
   location: string;
   verified: boolean;
+  primaryArea?: { name: string; slug: string } | null;
+  serviceAreas?: { name: string; slug: string }[];
 }
 
 export interface StoreSummary extends Store {

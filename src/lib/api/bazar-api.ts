@@ -107,12 +107,17 @@ export class BazarApi {
     return this.client.get("/api/v1/catalog/categories", { revalidate: catalogRevalidateSeconds });
   }
 
+  areas(): Promise<{ areas: { name: string; slug: string }[] }> {
+    return this.client.get("/api/v1/catalog/areas", { revalidate: catalogRevalidateSeconds });
+  }
+
   products(query: {
     page?: number;
     pageSize?: number;
     sellerId?: string;
     categoryId?: string;
     search?: string;
+    area?: string;
   } = {}): Promise<ProductPage> {
     return this.client.get<ProductPage>("/api/v1/catalog/products", { query, ...REVALIDATE });
   }

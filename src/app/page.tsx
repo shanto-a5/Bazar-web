@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
-import { ProductGrid } from "@/components/product-card";
 import { BazarApi } from "@/lib/api/bazar-api";
 import { createServerClient } from "@/lib/api/client";
 import { siteDescription } from "@/lib/config";
+import { HomeAreaShopping } from "@/components/home-area-shopping";
 
 export const metadata: Metadata = {
   title: "Shop online in Bangladesh",
@@ -37,7 +37,7 @@ export default async function HomePage() {
             Shop electronics, fashion, home essentials and more. Fast delivery and secure checkout.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link
+          <Link
               href="/catalogue"
               className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-brand-600 hover:bg-brand-50"
             >
@@ -81,9 +81,10 @@ export default async function HomePage() {
           <Link href="/catalogue" className="text-sm font-semibold text-brand-600 hover:underline">
             View all
           </Link>
+          <Link href="/settings" className="rounded-full border border-white/60 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10">Settings</Link>
         </div>
         {products.length > 0 ? (
-          <ProductGrid products={products} />
+          <HomeAreaShopping initialProducts={products} />
         ) : (
           <p className="rounded-[var(--radius-card)] border border-dashed border-line bg-surface px-6 py-10 text-center text-sm text-ink-muted">
             Products are unavailable right now. Please try again shortly.
