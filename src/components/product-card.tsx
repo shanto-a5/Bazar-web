@@ -1,18 +1,24 @@
-import Link from "next/link";
+"use client";
+
+import { useLanguage } from "@/components/language-provider";
+import { useQuickCommerce } from "@/components/quick-commerce";
 import { SafeImage } from "@/components/safe-image";
 import { Badge } from "@/components/ui";
 import { discountPercent, effectivePrice, formatMoney } from "@/lib/format";
 import type { Product } from "@/lib/types";
 
 export function ProductCard({ product, className }: { product: Product; className?: string }) {
+  const { openQuickView } = useQuickCommerce();
+  const { t } = useLanguage();
   const price = effectivePrice(product);
   const discount = discountPercent(product.regularPrice, product.salePrice);
   const image = product.images?.[0];
 
   return (
-    <Link
-      href={`/product/${product.id}`}
-      className={`group flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-sm transition-shadow hover:shadow-md ${className ?? ""}`}
+    <button
+      type="button"
+      onClick={() => openQuickView(product)}
+      className={`group flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface text-left shadow-sm transition-shadow hover:shadow-md ${className ?? ""}`}
     >
       <div className="relative aspect-square w-full overflow-hidden bg-surface-muted">
         <SafeImage
@@ -43,11 +49,13 @@ export function ProductCard({ product, className }: { product: Product; classNam
           )}
         </div>
         {product.soldCount > 0 && (
-          <p className="text-xs text-ink-faint">{product.soldCount} sold</p>
+          <p className="text-xs text-ink-faint">
+            {product.soldCount} {t("soldSuffix")}
+          </p>
         )}
-        {product.stock <= 0 && <Badge tone="danger">Out of stock</Badge>}
+        {product.stock <= 0 && <Badge tone="danger">{t("outOfStock")}</Badge>}
       </div>
-    </Link>
+    </button>
   );
 }
 

@@ -4,7 +4,9 @@ import "./globals.css";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { AreaProvider } from "@/components/area-provider";
+import { LanguageProvider } from "@/components/language-provider";
 import { QuickAccountProvider } from "@/components/quick-account";
+import { QuickCommerceProvider } from "@/components/quick-commerce";
 import { SessionProvider } from "@/components/session-provider";
 import { PushMessageBridge } from "@/components/push-message-bridge";
 import { siteDescription, siteName, siteUrl } from "@/lib/config";
@@ -49,18 +51,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
-        <SessionProvider>
-          <PushMessageBridge />
-          <AreaProvider>
-            <QuickAccountProvider>
-              <Header />
-              <main id="main" className="flex-1">
-                {children}
-              </main>
-              <Footer />
-            </QuickAccountProvider>
-          </AreaProvider>
-        </SessionProvider>
+        <LanguageProvider>
+          <SessionProvider>
+            <PushMessageBridge />
+            <AreaProvider>
+              <QuickAccountProvider>
+                <QuickCommerceProvider>
+                  <Header />
+                  <main id="main" className="flex-1">
+                    {children}
+                  </main>
+                  <Footer />
+                </QuickCommerceProvider>
+              </QuickAccountProvider>
+            </AreaProvider>
+          </SessionProvider>
+        </LanguageProvider>
       </body>
     </html>
   );
