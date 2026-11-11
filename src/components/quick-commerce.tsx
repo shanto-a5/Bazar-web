@@ -13,14 +13,13 @@ import {
 } from "react";
 import { useArea } from "@/components/area-provider";
 import { useLanguage } from "@/components/language-provider";
+import { useQuickAccount } from "@/components/quick-account";
 import { SafeImage } from "@/components/safe-image";
 import { useSession } from "@/components/session-provider";
 import { getBrowserApi } from "@/lib/api/bazar-api";
 import { discountPercent, effectivePrice, formatMoney } from "@/lib/format";
-import { detectAddress, type AddressSuggestion } from "@/lib/geocode";
 import type { AddressDto, AddressInput, PricedCartLine, Product } from "@/lib/types";
 
-const PHONE_RE = /^[0-9+\-\s]{6,20}$/;
 const GUEST_CART_KEY = "bazar.guest_cart.v1";
 const SUCCESS_DURATION_MS = 1000;
 
@@ -80,7 +79,6 @@ function resolveUnitWeightLabel(product: Product, fallback: string): string {
 
 function buildOrderAddress(params: {
   cached?: AddressDto | null;
-  gps?: AddressSuggestion | null;
   areaName?: string;
   userName?: string;
   phone?: string;
@@ -90,21 +88,21 @@ function buildOrderAddress(params: {
   const recipientName = rawRecipient.length >= 2 ? rawRecipient : "Customer";
   const rawPhone = (params.cached?.phone || params.phone || "01700000000").trim();
   const phone = rawPhone.length >= 6 ? rawPhone : "01700000000";
-  const rawDivision = (params.gps?.division || params.cached?.division || activeArea || "Bangladesh").trim();
+  const rawDivision = (params.cached?.division || activeArea || "Bangladesh").trim();
   const division = rawDivision.length >= 2 ? rawDivision : "Bangladesh";
-  const rawDistrict = (params.gps?.district || params.cached?.district || activeArea || "Bangladesh").trim();
+  const rawDistrict = (params.cached?.district || activeArea || "Bangladesh").trim();
   const district = rawDistrict.length >= 2 ? rawDistrict : "Bangladesh";
-  const area = (params.gps?.area || params.cached?.area || activeArea).trim();
+  const area = (params.cached?.area || activeArea).trim();
 
-  const latitude = params.gps?.latitude ?? params.cached?.latitude;
-  const longitude = params.gps?.longitude ?? params.cached?.longitude;
+  const latitude = params.cached?.latitude;
+  const longitude = params.cached?.longitude;
   const hasCoords =
     typeof latitude === "number" &&
     typeof longitude === "number" &&
     Number.isFinite(latitude) &&
     Number.isFinite(longitude);
 
-  let addressLine = (params.gps?.addressLine || params.cached?.addressLine || "").trim();
+  let addressLine = (params.cached?.addressLine || "").trim();
   if (addressLine.length < 4) {
     addressLine = hasCoords
       ? `GPS ${latitude.toFixed(5)}, ${longitude.toFixed(5)} (${activeArea})`
@@ -153,15 +151,19 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
   const api = getBrowserApi();
   const router = useRouter();
   const pathname = usePathname();
-  const { status, user, quickAccount } = useSession();
+  const { status, user } = useSession();
+  const { present: presentQuickAccount } = useQuickAccount();
   const { area } = useArea();
   const { t } = useLanguage();
 
   const authenticated = status === "authenticated" && Boolean(user);
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [miniCartOpen, setMiniCartOpen] = useState(false);
-  const [guestPromptTarget, setGuestPromptTarget] = useState<PendingOrderTarget | null>(null);
 
   const [remoteLines, setRemoteLines] = useState<PricedCartLine[]>([]);
   const [guestLines, setGuestLines] = useState<GuestCartLine[]>(() => readGuestCart());
@@ -171,12 +173,6 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderSuccessVisible, setOrderSuccessVisible] = useState(false);
-
-  // Guest micro-modal state
-  const [guestPhone, setGuestPhone] = useState("");
-  const [guestPhoneError, setGuestPhoneError] = useState<string | null>(null);
-  const [gpsStatus, setGpsStatus] = useState<"idle" | "fetching" | "ready" | "fallback">("idle");
-  const gpsRef = useRef<AddressSuggestion | null>(null);
 
   // Track whether we pushed a dummy history entry for back-button hijacking
   const historyPushedRef = useRef(false);
@@ -188,16 +184,19 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setCartBouncing(false), 500);
   }, []);
 
-  const refreshRemoteCart = useCallback(async () => {
-    if (!authenticated) return;
-    try {
-      const cart = await api.cart();
-      const allLines = (cart.groups ?? []).flatMap((g) => g.items);
-      setRemoteLines(allLines);
-    } catch {
-      /* ignore transient fetch failure */
-    }
-  }, [api, authenticated]);
+  const refreshRemoteCart = useCallback(
+    async (force = false) => {
+      if (!authenticated && !force) return;
+      try {
+        const cart = await api.cart();
+        const allLines = (cart.groups ?? []).flatMap((g) => g.items);
+        setRemoteLines(allLines);
+      } catch {
+        /* ignore transient fetch failure */
+      }
+    },
+    [api, authenticated],
+  );
 
   useEffect(() => {
     if (!authenticated) return;
@@ -236,21 +235,18 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onPopState = () => {
-      if (quickViewProduct || miniCartOpen || guestPromptTarget) {
+      if (quickViewProduct || miniCartOpen) {
         closingFromPopStateRef.current = true;
         historyPushedRef.current = false;
         setQuickViewProduct(null);
         setMiniCartOpen(false);
-        if (!placingOrder) {
-          setGuestPromptTarget(null);
-        }
         setOrderError(null);
         closingFromPopStateRef.current = false;
       }
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [quickViewProduct, miniCartOpen, guestPromptTarget, placingOrder]);
+  }, [quickViewProduct, miniCartOpen]);
 
   const openQuickView = useCallback(
     (product: Product) => {
@@ -354,7 +350,6 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
 
   const triggerOrderSuccess = useCallback(() => {
     setPlacingOrder(false);
-    setGuestPromptTarget(null);
     setQuickViewProduct(null);
     setMiniCartOpen(false);
     setOrderError(null);
@@ -374,7 +369,6 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
       target: PendingOrderTarget;
       userName?: string;
       phone?: string;
-      gps?: AddressSuggestion | null;
     }) => {
       setPlacingOrder(true);
       setOrderError(null);
@@ -405,10 +399,9 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
 
         const orderAddress = buildOrderAddress({
           cached: defaultAddress,
-          gps: params.gps ?? gpsRef.current,
           areaName: area?.name,
-          userName: params.userName ?? user?.name,
-          phone: params.phone ?? user?.phone,
+          userName: params.userName ?? userRef.current?.name,
+          phone: params.phone ?? userRef.current?.phone,
         });
 
         await api.createOrder({
@@ -416,41 +409,40 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
           paymentMethod: "cod",
         });
 
-        await refreshRemoteCart();
+        await refreshRemoteCart(true);
         triggerOrderSuccess();
       } catch (err) {
         setPlacingOrder(false);
         setOrderError(err instanceof Error ? err.message : "Could not place order.");
       }
     },
-    [api, area, user, refreshRemoteCart, triggerOrderSuccess],
+    [api, area, refreshRemoteCart, triggerOrderSuccess],
   );
 
-  const openGuestMicroModal = useCallback(
+  const promptGuestQuickAccount = useCallback(
     (target: PendingOrderTarget) => {
       setOrderError(null);
-      setGuestPhoneError(null);
-      setGuestPromptTarget(target);
-      setGpsStatus("fetching");
-      gpsRef.current = null;
-      pushModalHistory();
-
-      void detectAddress()
-        .then((res) => {
-          if (res.ok) {
-            gpsRef.current = res.suggestion;
-            setGpsStatus("ready");
-          } else {
-            gpsRef.current = null;
-            setGpsStatus("fallback");
-          }
-        })
-        .catch(() => {
-          gpsRef.current = null;
-          setGpsStatus("fallback");
-        });
+      presentQuickAccount({
+        onAuthenticated: () => {
+          void (async () => {
+            let activeUser = userRef.current;
+            if (!activeUser) {
+              try {
+                activeUser = await api.me();
+              } catch {
+                activeUser = null;
+              }
+            }
+            await executeOneClickOrder({
+              target,
+              userName: activeUser?.name,
+              phone: activeUser?.phone,
+            });
+          })();
+        },
+      });
     },
-    [pushModalHistory],
+    [api, presentQuickAccount, executeOneClickOrder],
   );
 
   const buyNowProduct = useCallback(
@@ -463,10 +455,10 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
           phone: user.phone,
         });
       } else {
-        openGuestMicroModal(target);
+        promptGuestQuickAccount(target);
       }
     },
-    [authenticated, user, executeOneClickOrder, openGuestMicroModal],
+    [authenticated, user, executeOneClickOrder, promptGuestQuickAccount],
   );
 
   const buyNowMiniCart = useCallback(() => {
@@ -481,59 +473,9 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
         phone: user.phone,
       });
     } else {
-      openGuestMicroModal(target);
+      promptGuestQuickAccount(target);
     }
-  }, [authenticated, user, executeOneClickOrder, openGuestMicroModal]);
-
-  const submitGuestOrder = useCallback(
-    async (event: React.FormEvent) => {
-      event.preventDefault();
-      if (!guestPromptTarget || placingOrder) return;
-      const trimmed = guestPhone.trim();
-      if (!PHONE_RE.test(trimmed)) {
-        setGuestPhoneError(t("phoneInvalidError"));
-        return;
-      }
-      setGuestPhoneError(null);
-      setPlacingOrder(true);
-      setOrderError(null);
-
-      try {
-        let coords = gpsRef.current;
-        if (gpsStatus === "fetching") {
-          coords = await Promise.race([
-            detectAddress()
-              .then((r) => (r.ok ? r.suggestion : null))
-              .catch(() => null),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
-          ]);
-          gpsRef.current = coords;
-        }
-
-        const createdUser = await quickAccount(trimmed);
-
-        const addressPayload = buildOrderAddress({
-          gps: coords,
-          areaName: area?.name,
-          userName: createdUser.name || trimmed,
-          phone: trimmed,
-        });
-
-        void api.createAddress(addressPayload).catch(() => undefined);
-
-        await executeOneClickOrder({
-          target: guestPromptTarget,
-          userName: createdUser.name || trimmed,
-          phone: trimmed,
-          gps: coords,
-        });
-      } catch (err) {
-        setPlacingOrder(false);
-        setOrderError(err instanceof Error ? err.message : "Could not complete 1-click order.");
-      }
-    },
-    [guestPromptTarget, placingOrder, guestPhone, t, gpsStatus, quickAccount, area, api, executeOneClickOrder],
-  );
+  }, [authenticated, user, executeOneClickOrder, promptGuestQuickAccount]);
 
   const displayLines: MiniCartDisplayLine[] = useMemo(() => {
     if (authenticated) {
@@ -776,84 +718,6 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
               </>
             )}
           </div>
-        </div>
-      )}
-
-      {/* STEP 4.2: Guest 1-Click Phone Micro-Modal */}
-      {guestPromptTarget && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-xs"
-          onClick={() => {
-            if (!placingOrder) {
-              setGuestPromptTarget(null);
-              setGuestPhoneError(null);
-            }
-          }}
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("guestPhoneTitle")}
-        >
-          <form
-            onClick={(e) => e.stopPropagation()}
-            onSubmit={(e) => void submitGuestOrder(e)}
-            className="w-full max-w-sm rounded-3xl border border-line bg-surface p-6 shadow-2xl"
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-lg font-extrabold text-ink">📞 {t("guestPhoneTitle")}</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!placingOrder) {
-                    setGuestPromptTarget(null);
-                    setGuestPhoneError(null);
-                  }
-                }}
-                aria-label={t("close")}
-                className="grid h-8 w-8 place-items-center rounded-full bg-surface-muted text-xs font-bold text-ink-muted"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="mb-3 text-xs leading-relaxed text-ink-muted">{t("guestPhoneSubtitle")}</p>
-
-            <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-              📍{" "}
-              {gpsStatus === "fetching"
-                ? t("gpsFetching")
-                : gpsStatus === "ready"
-                  ? t("gpsReady")
-                  : t("gpsFallback")}
-            </div>
-
-            <label className="block text-xs font-bold text-ink">
-              {t("phoneNumberLabel")}
-              <input
-                type="tel"
-                inputMode="tel"
-                autoFocus
-                required
-                value={guestPhone}
-                onChange={(e) => {
-                  setGuestPhone(e.target.value);
-                  if (guestPhoneError) setGuestPhoneError(null);
-                }}
-                placeholder={t("phonePlaceholder")}
-                className="mt-1.5 h-11 w-full rounded-xl border border-line bg-surface-muted px-3.5 text-base font-bold text-ink outline-none focus:border-brand-500"
-              />
-            </label>
-
-            {guestPhoneError && <p className="mt-1.5 text-xs font-semibold text-danger">{guestPhoneError}</p>}
-            {orderError && <p className="mt-1.5 text-xs font-semibold text-danger">{orderError}</p>}
-
-            <button
-              type="submit"
-              disabled={placingOrder}
-              className="mt-4 w-full rounded-2xl bg-brand-500 px-5 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-50"
-            >
-              {placingOrder ? t("placingOrder") : `⚡ ${t("confirmOrder")}`}
-            </button>
-          </form>
         </div>
       )}
 
