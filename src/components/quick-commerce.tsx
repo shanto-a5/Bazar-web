@@ -171,8 +171,27 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
 
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderSuccessVisible, setOrderSuccessVisible] = useState(false);
+
+  const orderLoadingSteps = useMemo(
+    () => [
+      t("orderStepVerifyPhone"),
+      t("orderStepConfirmLocation"),
+      t("orderStepCalculateTotal"),
+      t("orderStepPrepareOrder"),
+    ],
+    [t],
+  );
+
+  useEffect(() => {
+    if (!placingOrder) return;
+    const interval = setInterval(() => {
+      setLoadingStepIndex((prev) => (prev < 3 ? prev + 1 : prev));
+    }, 600);
+    return () => clearInterval(interval);
+  }, [placingOrder]);
 
   // Track whether we pushed a dummy history entry for back-button hijacking
   const historyPushedRef = useRef(false);
@@ -370,6 +389,7 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
       userName?: string;
       phone?: string;
     }) => {
+      setLoadingStepIndex(0);
       setPlacingOrder(true);
       setOrderError(null);
       try {
@@ -622,7 +642,7 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
                 onClick={() => buyNowProduct(quickViewProduct)}
                 className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-50 sm:px-6"
               >
-                {placingOrder ? t("placingOrder") : `⚡ ${t("buyNow")}`}
+                ⚡ {t("buyNow")}
               </button>
             </div>
           </div>
@@ -712,11 +732,52 @@ export function QuickCommerceProvider({ children }: { children: ReactNode }) {
                     onClick={buyNowMiniCart}
                     className="w-full rounded-2xl bg-brand-500 px-5 py-3.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-50"
                   >
-                    {placingOrder ? t("placingOrder") : `⚡ ${t("buyNow")} · ${formatMoney(miniCartSubtotal)}`}
+                    ⚡ {t("buyNow")} · {formatMoney(miniCartSubtotal)}
                   </button>
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3: "Agent-like" Progressive Loading Overlay */}
+      {placingOrder && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-xs"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex w-full max-w-sm flex-col gap-3.5 rounded-3xl bg-surface p-7 shadow-2xl">
+            {orderLoadingSteps.slice(0, loadingStepIndex + 1).map((stepText, idx) => {
+              const isCurrent = idx === loadingStepIndex;
+              return (
+                <div key={stepText} className="flex items-center gap-3.5">
+                  {isCurrent ? (
+                    <span
+                      aria-hidden
+                      className="h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-dashed border-brand-500"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-xs font-black text-white"
+                    >
+                      ✓
+                    </span>
+                  )}
+                  <span
+                    className={
+                      isCurrent
+                        ? "text-sm font-extrabold text-ink"
+                        : "text-sm font-semibold text-ink-muted"
+                    }
+                  >
+                    {stepText}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

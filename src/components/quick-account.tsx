@@ -1,11 +1,12 @@
 "use client";
 
 import { createContext, useContext, useEffect, useId, useMemo, useState } from "react";
+import { useLanguage } from "@/components/language-provider";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { useSession } from "@/components/session-provider";
 import { getBrowserApi } from "@/lib/api/bazar-api";
 import { ApiError } from "@/lib/api/client";
-import { detectAddress, parseCoordinates, resolveMapsCoordinates } from "@/lib/geocode";
+import { getCachedLocation, parseCoordinates, prefetchLocation, resolveMapsCoordinates } from "@/lib/geocode";
 
 /**
  * Frictionless guest ordering (phone-only "quick account", M14).
@@ -73,6 +74,7 @@ function isSaveableAddress(suggestion: {
  */
 export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
   const { quickAccount } = useSession();
+  const { t } = useLanguage();
   const phoneId = useId();
   const [phone, setPhone] = useState("");
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
@@ -113,23 +115,22 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
     }
     setFieldError(undefined);
     setFormError(null);
-    setBusy(true);
 
     let suggestion: { division: string; district: string; area: string; addressLine: string; latitude?: number; longitude?: number } | null =
       coordinates ? { division: "", district: "", area: "", addressLine: "", ...coordinates } : null;
     if (withLocation) {
-      setPhase("Getting your location…");
-      const result = await detectAddress();
-      if (result.ok) {
-        suggestion = result.suggestion;
+      // Read the globally cached GPS coordinates from Step 1 without re-fetching.
+      const cached = getCachedLocation();
+      if (cached) {
+        suggestion = cached;
       } else {
+        // Permission was denied or coordinates are null: immediately show manual fallback without waiting.
         setLocationFallback(true);
-        setBusy(false);
-        setPhase(null);
         return;
       }
     }
 
+    setBusy(true);
     setPhase("Setting up your account…");
     try {
       const user = await quickAccount(trimmed);
@@ -162,14 +163,20 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
     }
   }
 
-  function submitCoordinates() {
-    const coordinates = manualCoordinates;
+  async function submitCoordinates() {
+    let coordinates = manualCoordinates;
+    if (!coordinates && coordinateText.trim()) {
+      setResolvingMapsLink(true);
+      coordinates = await resolveMapsCoordinates(coordinateText.trim());
+      setResolvingMapsLink(false);
+      if (coordinates) setResolvedMapsCoordinates(coordinates);
+    }
     if (!coordinates) {
       setCoordinateError("Enter two valid numbers as latitude, longitude. Latitude must be −90 to 90 and longitude −180 to 180.");
       return;
     }
     setCoordinateError(null);
-    void submit(false, coordinates);
+    await submit(false, coordinates);
   }
 
   return (
@@ -198,7 +205,11 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
-              void submit(false);
+              if (locationFallback && coordinateText.trim()) {
+                void submitCoordinates();
+              } else {
+                void submit(true);
+              }
             }
           }}
           placeholder="01XXXXXXXXX"
@@ -218,39 +229,23 @@ export function QuickAccountForm({ onSuccess }: { onSuccess?: () => void }) {
             Open Google Maps
           </a>
           <Field label="Coordinates or Google Maps link" htmlFor="quick-account-coordinates" error={coordinateError ?? undefined} hint="Paste a coordinate pair or a Google Maps share link.">
-            <Input id="quick-account-coordinates" inputMode="decimal" autoComplete="off" placeholder="Paste coordinates or a Google Maps link" value={coordinateText} onChange={(event) => { setCoordinateText(event.target.value); setResolvedMapsCoordinates(null); setCoordinateError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); submitCoordinates(); } }} disabled={busy} />
+            <Input id="quick-account-coordinates" inputMode="decimal" autoComplete="off" placeholder="Paste coordinates or a Google Maps link" value={coordinateText} onChange={(event) => { setCoordinateText(event.target.value); setResolvedMapsCoordinates(null); setCoordinateError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void submitCoordinates(); } }} disabled={busy} />
           </Field>
           {resolvingMapsLink && <p className="text-sm text-ink-muted" role="status">Reading the location from your Google Maps link…</p>}
           <div className="mt-3 flex flex-col gap-2">
-            {resolvingMapsLink ? null : manualCoordinates ? (
-              <>
-                <Button size="lg" fullWidth disabled={busy} onClick={submitCoordinates}>
-                  {busy ? (phase ?? "Setting up…") : "Continue"}
-                </Button>
-                <Button variant="outline" size="lg" fullWidth disabled={busy} onClick={() => void submit(false)}>
-                  Continue without location
-                </Button>
-                <button type="button" className="self-center px-2 py-1 text-sm font-medium text-brand-600 underline disabled:opacity-50" disabled={busy} onClick={() => void submit(true)}>
-                  Get my current location (optional)
-                </button>
-              </>
-            ) : (
-              <>
-                <Button size="lg" fullWidth disabled={busy} onClick={() => void submit(true)}>
-                  {busy ? (phase ?? "Getting your location…") : "Try my current location"}
-                </Button>
-                <Button variant="outline" size="lg" fullWidth disabled={busy} onClick={() => void submit(false)}>
-                  Continue without location
-                </Button>
-              </>
-            )}
+            <Button size="lg" fullWidth disabled={busy || resolvingMapsLink} onClick={() => void submitCoordinates()}>
+              {busy ? (phase ?? "Setting up…") : t("confirmOrder")}
+            </Button>
+            <Button variant="outline" size="lg" fullWidth disabled={busy || resolvingMapsLink} onClick={() => void submit(false)}>
+              Continue without location
+            </Button>
           </div>
         </div>
       )}
 
       {!locationFallback && <div className="flex flex-col gap-2">
         <Button size="lg" fullWidth disabled={busy} onClick={() => void submit(true)}>
-          {busy ? (phase ?? "Setting up…") : "Use my location & continue"}
+          {busy ? (phase ?? "Setting up…") : "Continue with my current location"}
         </Button>
         <Button variant="outline" size="lg" fullWidth disabled={busy} onClick={() => void submit(false)}>
           Continue without location
@@ -306,6 +301,10 @@ function QuickAccountDialog({
 
 export function QuickAccountProvider({ children }: { children: React.ReactNode }) {
   const [request, setRequest] = useState<QuickAccountRequest | null>(null);
+
+  useEffect(() => {
+    prefetchLocation();
+  }, []);
 
   const value = useMemo<QuickAccountContextValue>(
     () => ({ present: (next) => setRequest(next ?? {}) }),

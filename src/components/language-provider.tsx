@@ -62,8 +62,12 @@ export const TRANSLATIONS = {
     gpsFetching: "GPS অবস্থান নেওয়া হচ্ছে...",
     gpsReady: "GPS অবস্থান সংযুক্ত হয়েছে",
     gpsFallback: "নির্বাচিত এলাকায় ডেলিভারি হবে",
-    confirmOrder: "অর্ডার নিশ্চিত করুন",
+    confirmOrder: "অর্ডার কনফার্ম করুন",
     placingOrder: "অর্ডার হচ্ছে...",
+    orderStepVerifyPhone: "আপনার নম্বর যাচাই করা হচ্ছে...",
+    orderStepConfirmLocation: "লোকেশন নিশ্চিত করা হচ্ছে...",
+    orderStepCalculateTotal: "মোট হিসাব করা হচ্ছে...",
+    orderStepPrepareOrder: "অর্ডার প্রস্তুত করা হচ্ছে...",
 
     // Settings Page
     shoppingSettingsTitle: "সেটিংস ও ভাষা",
@@ -146,6 +150,10 @@ export const TRANSLATIONS = {
     gpsFallback: "Using active area for delivery",
     confirmOrder: "Confirm Order",
     placingOrder: "Placing order...",
+    orderStepVerifyPhone: "Verifying your number...",
+    orderStepConfirmLocation: "Confirming location...",
+    orderStepCalculateTotal: "Calculating total...",
+    orderStepPrepareOrder: "Preparing your order...",
 
     // Settings Page
     shoppingSettingsTitle: "Shopping settings",
