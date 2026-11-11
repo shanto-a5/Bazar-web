@@ -111,6 +111,10 @@ export class BazarApi {
     return this.client.get("/api/v1/catalog/areas", { revalidate: catalogRevalidateSeconds });
   }
 
+  discoverArea(areaName: string): Promise<{ discovery: { id: string; requestedName: string; slug: string; requestedAt: string } }> {
+    return this.client.post("/api/v1/catalog/areas/discover", { areaName }, { authenticated: false });
+  }
+
   products(query: {
     page?: number;
     pageSize?: number;

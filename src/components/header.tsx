@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Badge, Button } from "@/components/ui";
+import { useArea } from "@/components/area-provider";
 import { useSession } from "@/components/session-provider";
 import { getBrowserApi } from "@/lib/api/bazar-api";
-import type { Category } from "@/lib/types";
 
-export function Header({ categories }: { categories: Category[] }) {
+export function Header() {
   const router = useRouter();
+  const { area, openSelector } = useArea();
   const { status, user, logout } = useSession();
   const [query, setQuery] = useState("");
   const [cartCount, setCartCount] = useState<number | null>(null);
@@ -70,6 +71,17 @@ export function Header({ categories }: { categories: Category[] }) {
           </span>
           <span className="hidden text-xl font-extrabold tracking-tight text-brand-600 sm:block">Bazar</span>
         </Link>
+
+        <button
+          type="button"
+          onClick={openSelector}
+          aria-label={`Shopping area: ${area?.name ?? "Select area"}. Click to change area.`}
+          className="flex max-w-44 shrink-0 items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 hover:border-brand-400 hover:bg-brand-100 sm:text-sm"
+        >
+          <span aria-hidden>📍</span>
+          <span className="truncate">{area?.name ?? "এলাকা বাছাই করুন"}</span>
+          <span aria-hidden className="text-[10px]">▾</span>
+        </button>
 
         <form onSubmit={onSubmit} role="search" className="flex min-w-0 flex-1 items-center">
           <label htmlFor="site-search" className="sr-only">
@@ -199,22 +211,6 @@ export function Header({ categories }: { categories: Category[] }) {
           )}
         </nav>
       </div>
-
-      {categories.length > 0 && (
-        <div className="border-t border-line bg-surface">
-          <div className="container-page no-scrollbar flex items-center gap-1 overflow-x-auto py-1.5 text-sm">
-            {categories.slice(0, 12).map((category) => (
-              <Link
-                key={category.id}
-                href={`/category/${category.id}`}
-                className="whitespace-nowrap rounded-full px-3 py-1.5 text-ink-muted hover:bg-brand-50 hover:text-brand-700"
-              >
-                {category.name}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
     </header>
   );
 }

@@ -3,13 +3,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { AreaProvider } from "@/components/area-provider";
 import { QuickAccountProvider } from "@/components/quick-account";
 import { SessionProvider } from "@/components/session-provider";
 import { PushMessageBridge } from "@/components/push-message-bridge";
-import { BazarApi } from "@/lib/api/bazar-api";
-import { createServerClient } from "@/lib/api/client";
 import { siteDescription, siteName, siteUrl } from "@/lib/config";
-import type { Category } from "@/lib/types";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -41,19 +39,7 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-async function loadCategories(): Promise<Category[]> {
-  try {
-    const api = new BazarApi(createServerClient());
-    const { categories } = await api.categories();
-    return categories;
-  } catch {
-    return [];
-  }
-}
-
-export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const categories = await loadCategories();
-
+export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="flex min-h-screen flex-col bg-canvas text-ink">
@@ -64,14 +50,16 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
         <SessionProvider>
-        <PushMessageBridge />
-          <QuickAccountProvider>
-            <Header categories={categories} />
-          <main id="main" className="flex-1">
-            {children}
-          </main>
-          <Footer />
-          </QuickAccountProvider>
+          <PushMessageBridge />
+          <AreaProvider>
+            <QuickAccountProvider>
+              <Header />
+              <main id="main" className="flex-1">
+                {children}
+              </main>
+              <Footer />
+            </QuickAccountProvider>
+          </AreaProvider>
         </SessionProvider>
       </body>
     </html>
